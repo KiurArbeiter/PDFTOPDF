@@ -3,9 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .entry {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+    </style>
 </head>
 <body>
-    
+    <h1>Extracted PDF Data</h1>
+    <div id="data-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.min.js"></script>
+    <script>
+        const keywords = [
+            "Algmaterjal",
+            "Formaat",
+            "Materjal",
+            "Värv",
+            "Trükise ehitus",
+            "Lisatööd",
+            "Kommentaar",
+            "kahepoolne"
+        ];
+
+        let currentEntry = null;
+        const entries = [];
+
+        const isKeywordLine = (text) => {
+            return keywords.some(keyword => text.toLowerCase().startsWith(keyword.toLowerCase()));
+        };
+
+        // Load the PDF
+        const loadingTask = pdfjsLib.getDocument('Pakkumine1.pdf');
+        loadingTask.promise.then(pdf => {
+            const numPages = pdf.numPages;
+            const textPromises = [];
+
+            for (let i = 1; i <= numPages; i++) {
+                textPromises.push(pdf.getPage(i).then(page => {
+                    return page.getTextContent().then(textContent => {
+                        return textContent.items.map(item => item.str).join(' ');
+                    });
+                }));
+            }
+
+            return Promise.all(textPromises);
+        }).then(texts => {
+            texts.forEach(text => {
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.includes("Kauba nimetus")) {
+                        if (currentEntry) entries.push(currentEntry);
+                        currentEntry = [];
+                    }
+                    if (isKeywordLine(trimmedLine) && currentEntry) {
+                        currentEntry.push(trimmedLine);
+                    }
+                });
+                if (currentEntry) entries.push(currentEntry); // Push the last entry
+            });
+            displayEntries(entries);
+        }).catch(error => {
+            console.error("Error reading PDF:", error);
+        });
+
+        function displayEntries(entries) {
+            const dataContainer = document.getElementById('data-container');
+            entries.forEach(entry => {
+                const entryDiv = document.createElement('div');
+                entryDiv.classList.add('entry');
+                entry.forEach(line => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.textContent = line;
+                    entryDiv.appendChild(lineDiv);
+                });
+                dataContainer.appendChild(entryDiv);
+            });
+        }
+    </script>
+
+<button onclick="printFunction()">Download</button>
+<script>
+      function printFunction() { 
+        window.print(); 
+      }
+</script>
+
 </body>
 </html>
